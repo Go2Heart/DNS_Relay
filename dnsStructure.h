@@ -9,9 +9,25 @@
  * 
  */
 
-#include <stdint.h>
 
+#ifdef _WIN32
+#include <winsock2.h>
+    #include <Ws2tcpip.h>
+    #include <Windows.h>
+#else // Linux
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <netdb.h>
+#include <errno.h>
+#include <stdbool.h>
 
+#endif
+#define BUFSIZE 1024
+#define DNS_SERVER_PORT 53
+#define DNS_SERVER_ADDR "114.114.114.114"
 /**
  * @brief the structure of a dns packet header
  * 
@@ -30,10 +46,9 @@ typedef struct {
  * 
  */
 typedef struct {
-    uint8_t* qname; /* linked list of labels */
+    uint8_t * qname; /* linked list of labels */
     uint16_t qtype;
     uint16_t qclass;
-    struct dns_question* next;
 } DNS_QUESTION;
 
 /**
@@ -49,4 +64,5 @@ typedef struct {
     uint8_t* rdata;
     struct dns_rr* next;
 } DNS_RR;
+
 

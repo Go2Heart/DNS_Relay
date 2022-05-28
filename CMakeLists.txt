@@ -4,7 +4,7 @@ project(dnsRelay VERSION 0.1.0)
 include(CTest)
 enable_testing()
 
-add_executable(dnsRelay main.cpp)
+add_executable(dnsRelay dnsStructure.h dnsClient.c dnsResolver.c dnsResolver.h)
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
