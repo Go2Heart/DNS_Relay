@@ -4,7 +4,53 @@
 
 #include "dnsResolver.h"
 
+extern void printDnsHeader(DNS_HEADER *header) {
+    printf("===== DNS Header =====\n");
+    printf("id: 0x%x\n", (header->id));
+    printf("flags: 0x%x\n", (header->flags));
+    printf("qdcount: %d\n", (header->qdcount));
+    printf("ancount: %d\n", (header->ancount));
+    printf("nscount: %d\n", (header->nscount));
+    printf("arcount: %d\n", (header->arcount));
+    printf("=====================\n");
+}
 
+extern void printDnsQuestion(DNS_QUESTION *question) {
+    printf("===== DNS Question =====\n");
+    printf("qname: %s\n", question->qname);
+    printf("qtype: %d\n", (question->qtype));
+    printf("qclass: %d\n", (question->qclass));
+    printf("=====================\n");
+}
+
+extern void printDnsRR(DNS_RR *rr) {
+    printf("===== DNS RR =====\n");
+    printf("name: %s\n", rr->name);
+    printf("type: %d\n", (rr->type));
+    printf("class: %d\n", (rr->class));
+    printf("ttl: %d\n", (rr->ttl));
+    printf("rdlength: %d\n", (rr->rdlength));
+    printf("rdata: %s\n", rr->rdata);
+    printf("=====================\n");
+}
+extern void ntohDnsHeader(DNS_HEADER *header) {
+    header->id = ntohs(header->id);
+    header->flags = ntohs(header->flags);
+    header->qdcount = ntohs(header->qdcount);
+    header->ancount = ntohs(header->ancount);
+    header->nscount = ntohs(header->nscount);
+    header->arcount = ntohs(header->arcount);
+}
+extern void ntohDnsQuestion(DNS_QUESTION *question) {
+    question->qtype = ntohs(question->qtype);
+    question->qclass = ntohs(question->qclass);
+}
+extern void ntohDnsRR(DNS_RR *rr) {
+    rr->type = ntohs(rr->type);
+    rr->class = ntohs(rr->class);
+    rr->ttl = ntohl(rr->ttl);
+    rr->rdlength = ntohs(rr->rdlength);
+}
 extern bool createHeader( DNS_HEADER *header) {
     if (header == NULL) {
         return false;
@@ -57,81 +103,100 @@ int createRequest(char *request, DNS_HEADER *header, DNS_QUESTION *question) {
     return len;
 
 }
+int parseName(char *answer, int offset, char *name) {
+    if (answer == NULL || name == NULL) {
+        return -1;
+    }
+    int len = 0;
+    int flag = 0;
+    uint8_t *p = (uint8_t *)answer + offset;
+    while(*p != 0) {
+        flag = *p;
+        if (flag == 0) break;
+        if (flag == 0xC0) { /* judge if it is a pointer */
+            int pointer = p[1];
+            len = parseName(answer, pointer, name+len);
+            return len;
+        } else {
+            memcpy(name + len, p + 1, flag);
+            len += flag;
+            name[len] = '.';
+            len++;
+            p = p + flag + 1;
+        }
+
+    }
+    name[len - 1] = '\0';
+    return len;
+}
+
+int parseResponse(char *response, DNS_HEADER *header, DNS_QUESTION *question, DNS_RR *answer) {
+    if (response == NULL || header == NULL || question == NULL || answer == NULL) {
+        return -1;
+    }
+
+    int cnt = 0;
+    char answerName[256], cname[256];
+    unsigned char ip[4];
+    DNS_RR *rr = answer;
+
+    memcpy(header, response, sizeof(DNS_HEADER));
+    ntohDnsHeader(header);
+    int len = sizeof(DNS_HEADER);
+    printDnsHeader(header);
+    char name[256];
+    parseName(response, sizeof(DNS_HEADER), name);
+    question->qname = (uint8_t *)malloc(strlen(name) + 1);
+    memcpy(question->qname, name, strlen(name) + 1);
+    len += (int)strlen((char *)question->qname) + 2; /* etc.  .com /0 type class */
+    memcpy(&question->qtype, response+len, sizeof (question->qclass));
+    len += sizeof (question->qtype);
+    memcpy(&question->qclass, response+len, sizeof (question->qclass));
+    len += sizeof (question->qclass);
+    ntohDnsQuestion(question);
+    printDnsQuestion(question);
+    int ancount = (header->ancount);
+
+    for (int i = 0; i < ancount; i++) {
+        parseName(response, len, answerName);
+        rr->name = (uint8_t *)malloc(strlen(answerName) + 1);
+        memcpy(rr->name, answerName, strlen(answerName) + 1);
+        len += 2;
+        memcpy(&rr->type, response+len, sizeof (rr->type));
+        //rr->type = ntohs(rr->type);
+        len += sizeof (rr->type);
+        memcpy(&rr->class, response+len, sizeof (rr->class));
+        //rr->class = ntohs(rr->class);
+        len += sizeof (rr->class);
+        memcpy(&rr->ttl, response+len, sizeof (rr->ttl));
+        //rr->ttl = ntohl(rr->ttl);
+        len += sizeof (rr->ttl);
+        memcpy(&rr->rdlength, response+len, sizeof (rr->rdlength));
+        //rr->rdlength = ntohs(rr->rdlength);
+        len += sizeof (rr->rdlength);
+        ntohDnsRR(rr);
+        rr->rdata = (uint8_t *)malloc(rr->rdlength);
+        if(rr->type == 0x05) { /* CNAME */
+            parseName(response, len, cname);
+            rr->rdata = (uint8_t *)malloc(strlen(cname) + 1);
+            memcpy(rr->rdata, cname, strlen(cname) + 1);
+            len += rr->rdlength;
+        } else if(rr->type == 0x01) { /* A */
+            memcpy(ip, response+len, rr->rdlength);
+            len += rr->rdlength;
+            printf("ip: %d.%d.%d.%d\n", ip[0], ip[1], ip[2], ip[3]);
+            rr->rdata = (uint8_t *)malloc(strlen(ip) + 1);
+            memcpy(rr->rdata, ip, strlen(ip) + 1);
+            cnt ++;
+        }
+        if(i != ancount - 1)rr->next = (struct dns_rr *)malloc(sizeof(DNS_RR));
+        printDnsRR(rr);
+    }
+    return cnt;
+
+}
 /*int isPtr(){}*/
 
-bool sendDnsMessage(const char *name, const char *server, const int port, char *buf, int bufSize) {
-    int fd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (fd < 0) {
-        perror("socket");
-        return false;
-    }
-    struct sockaddr_in addr;
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = inet_addr(server);
-    if (addr.sin_addr.s_addr == INADDR_NONE) {
-        struct hostent *host = gethostbyname(server);
-        if (host == NULL) {
-            perror("gethostbyname");
-            return false;
-        }
-        addr.sin_addr = *(struct in_addr *) host->h_addr;
-    }
-    DNS_HEADER *header = (DNS_HEADER *) buf;
-    header->id = htons(getpid());
-    header->flags = htons(0x0100);
-    header->qdcount = htons(1);
-    header->ancount = 0;
-    header->nscount = 0;
-    header->arcount = 0;
-    DNS_QUESTION *question = (DNS_QUESTION *) (malloc(sizeof(DNS_QUESTION)));
-    question->qname = (uint8_t *) name;
-    question->qtype = htons(1);
-    question->qclass = htons(1);
-    printf("%lu\n", sizeof(DNS_HEADER));
-    buf[16-4] = 5;
-    buf[17-4] = 'b';
-    buf[18-4] = 'a';
-    buf[19-4] = 'i';
-    buf[20-4] = 'd';
-    buf[21-4] = 'u';
-    buf[22-4] = 3;
-    buf[23-4] = 'c';
-    buf[24-4] = 'o';
-    buf[25-4] = 'm';
-    buf[26-4] = 0;
-    buf[sizeof(DNS_HEADER) + strlen(name) +2] = 0;
-    buf[sizeof(DNS_HEADER) + strlen(name) + 3] = 1;
-    buf[sizeof(DNS_HEADER) + strlen(name) + 4] = 0;
-    buf[sizeof(DNS_HEADER) + strlen(name) + 5] = 1;
-    /* DNS_QUESTION *question = (DNS_QUESTION *) (buf + sizeof(DNS_HEADER));
-    question->qname = (uint8_t *) malloc(strlen(name));
-    question->qtype = htons(1);
-    question->qclass = htons(1);
-    strcpy((char *) question->qname, name);
-    printf("%lu\n", sizeof(*question)); */
-    socklen_t addrlen = sizeof(addr);
-    int len = sizeof(DNS_HEADER) + sizeof(DNS_QUESTION);
-    int ret = sendto(fd, buf, 27, 0, (struct sockaddr *) &addr, addrlen);
-    if (ret < 0) {
-        perror("sendto");
-        return false;
-    }
-    printf("send dns message: %s\n", buf);
-    unsigned char recvbuf[1024] = {0};
-    struct sockaddr_in from;
-    ret = recvfrom(fd, (char*)recvbuf, bufSize, 0,(struct sockaddr *) &from, &addrlen);
-    if (ret < 0) {
-        perror("recvfrom");
-        return false;
-    }
-    recvbuf[ret] = '\0';
-    printf("receive dns message: %s\n", recvbuf);
-
-    close(fd);
-    return true;
-}
 extern int dnsQuery(const char *name)  {
     char buf[BUFSIZE] = {0};
     int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -167,6 +232,10 @@ extern int dnsQuery(const char *name)  {
             perror("recvfrom");
             return -1;
         }
+        DNS_HEADER recvHeader = {0};
+        DNS_QUESTION recvQuestion = {0};
+        DNS_RR recvAnswer = {0};
+        parseResponse(recvbuf, &recvHeader, &recvQuestion, &recvAnswer);
     }
 
 

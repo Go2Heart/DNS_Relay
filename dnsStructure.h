@@ -9,7 +9,6 @@
  * 
  */
 
-
 #ifdef _WIN32
 #include <winsock2.h>
     #include <Ws2tcpip.h>
@@ -32,6 +31,10 @@
  * @brief the structure of a dns packet header
  * 
  */
+typedef struct {
+    char *name;
+    char *ip;
+} DNS_MAP;
 
 typedef struct {
     uint16_t id;
@@ -46,7 +49,7 @@ typedef struct {
  * 
  */
 typedef struct {
-    uint8_t * qname; /* linked list of labels */
+    uint8_t * qname;
     uint16_t qtype;
     uint16_t qclass;
 } DNS_QUESTION;
@@ -58,7 +61,7 @@ typedef struct {
 typedef struct {
     uint8_t* name; /* linked list of labels */
     uint16_t type;
-    uint16_t _class;
+    uint16_t class;
     uint32_t ttl;
     uint16_t rdlength;
     uint8_t* rdata;
