@@ -31,12 +31,12 @@
  * @brief the structure of a dns packet header
  * 
  */
-typedef struct {
+typedef struct dns_map {
     char *name;
-    char *ip;
+    unsigned char ip[4];
 } DNS_MAP;
 
-typedef struct {
+typedef struct dns_header {
     uint16_t id;
     uint16_t flags;
     uint16_t qdcount;
@@ -48,8 +48,8 @@ typedef struct {
  * @brief the structure of a dns question
  * 
  */
-typedef struct {
-    uint8_t * qname;
+typedef struct dns_question {
+    uint8_t* qname;
     uint16_t qtype;
     uint16_t qclass;
 } DNS_QUESTION;
@@ -58,7 +58,7 @@ typedef struct {
  * @brief 
  * 
  */
-typedef struct {
+typedef struct dns_rr {
     uint8_t* name; /* linked list of labels */
     uint16_t type;
     uint16_t class;

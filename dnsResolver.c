@@ -138,7 +138,9 @@ int parseResponse(char *response, DNS_HEADER *header, DNS_QUESTION *question, DN
     int cnt = 0;
     char answerName[256], cname[256];
     unsigned char ip[4];
-    DNS_RR *rr = answer;
+
+    DNS_RR *rr = malloc(sizeof(DNS_RR));
+    answer->next = (struct dns_rr*) rr;
 
     memcpy(header, response, sizeof(DNS_HEADER));
     ntohDnsHeader(header);
@@ -189,54 +191,77 @@ int parseResponse(char *response, DNS_HEADER *header, DNS_QUESTION *question, DN
             memcpy(rr->rdata, ip, strlen(ip) + 1);
             cnt ++;
         }
-        if(i != ancount - 1)rr->next = (struct dns_rr *)malloc(sizeof(DNS_RR));
         printDnsRR(rr);
+        if(i != ancount - 1)rr->next = (struct dns_rr *)malloc(sizeof(DNS_RR)), rr = rr->next;
     }
     return cnt;
 
 }
 /*int isPtr(){}*/
 
-extern int dnsQuery(const char *name)  {
-    char buf[BUFSIZE] = {0};
-    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sockfd < 0) {
-        perror("socket");
-        exit(-1);
-    }
+extern int dnsQuery(const char*name, Cache* cache)  {
+    unsigned char ip[4] = {0};
+    if(queryCache(cache, name, ip)) {
+        //found in cache
+        printf("found in cache\n");
+        printf("ip: %d.%d.%d.%d\n", ip[0], ip[1], ip[2], ip[3]);
+    } else {
+        //not found in cache
+        printf("not found in cache\n");
+        char buf[BUFSIZE] = {0};
+        int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+        if (sockfd < 0) {
+            perror("socket");
+            exit(-1);
+        }
 
-    struct sockaddr_in serveraddr;
-    memset(&serveraddr, 0, sizeof(serveraddr));
-    serveraddr.sin_family = AF_INET;
-    serveraddr.sin_port = htons(DNS_SERVER_PORT);
-    serveraddr.sin_addr.s_addr = inet_addr(DNS_SERVER_ADDR);
-    DNS_HEADER header = {0};
-    createHeader(&header);
-    DNS_QUESTION question = {0};
-    createQuestion(&question, name);
-    int reqLen = createRequest(buf, &header, &question);
-    if(reqLen < 0) {
-        return -1;
-    }
-    int nbytes = sendto(sockfd, buf, reqLen, 0, (struct sockaddr *)&serveraddr, sizeof(serveraddr));
-    if (nbytes < 0) {
-        perror("sendto");
-        return -1;
-    }
-    while(true) {
-        struct sockaddr addr;
-        socklen_t addrlen = sizeof(addr);
-        char recvbuf[BUFSIZE] = {0};
-        nbytes = recvfrom(sockfd, recvbuf, sizeof(recvbuf), 0, &addr, &addrlen);
-        if (nbytes < 0) {
-            perror("recvfrom");
+        struct sockaddr_in serveraddr;
+        memset(&serveraddr, 0, sizeof(serveraddr));
+        serveraddr.sin_family = AF_INET;
+        serveraddr.sin_port = htons(DNS_SERVER_PORT);
+        serveraddr.sin_addr.s_addr = inet_addr(DNS_SERVER_ADDR);
+        DNS_HEADER header = {0};
+        createHeader(&header);
+        DNS_QUESTION question = {0};
+        createQuestion(&question, name);
+        int reqLen = createRequest(buf, &header, &question);
+        if(reqLen < 0) {
             return -1;
         }
-        DNS_HEADER recvHeader = {0};
-        DNS_QUESTION recvQuestion = {0};
-        DNS_RR recvAnswer = {0};
-        parseResponse(recvbuf, &recvHeader, &recvQuestion, &recvAnswer);
+        int nbytes = sendto(sockfd, buf, reqLen, 0, (struct sockaddr *)&serveraddr, sizeof(serveraddr));
+        if (nbytes < 0) {
+            perror("sendto");
+            return -1;
+        }
+        while(true) {
+            struct sockaddr addr;
+            socklen_t addrlen = sizeof(addr);
+            char recvbuf[BUFSIZE] = {0};
+            nbytes = recvfrom(sockfd, recvbuf, sizeof(recvbuf), 0, &addr, &addrlen);
+            if (nbytes < 0) {
+                perror("recvfrom");
+                return -1;
+            }
+            DNS_HEADER *recvHeader = (DNS_HEADER *) malloc(sizeof(DNS_HEADER));
+            DNS_QUESTION *recvQuestion = (DNS_QUESTION *) malloc(sizeof(DNS_QUESTION));
+            DNS_RR *recvAnswer = (DNS_RR *) malloc(sizeof(DNS_RR)); /* RR linklist head */
+            parseResponse(recvbuf, recvHeader, recvQuestion, recvAnswer);
+            while(recvAnswer != NULL) {
+                if(recvAnswer->type == 0x01 ) {
+                    //If the answer is an A record, we can get the IP address updated in cache
+                    printf("%d.%d.%d.%d\n", recvAnswer->rdata[0], recvAnswer->rdata[1], recvAnswer->rdata[2], recvAnswer->rdata[3]);
+                    //adding to cache
+                    struct dns_map *map = (struct dns_map *)malloc(sizeof(struct dns_map));
+                    map->name = (uint8_t *)malloc(strlen((char *)recvAnswer->name) + 1);
+                    memcpy(map->name, recvAnswer->name, strlen((char *)recvAnswer->name) + 1);
+                    memcpy(map->ip, recvAnswer->rdata, 4);
+                    insertCache(cache, map->name, map->ip);
+                    printCache(cache);
+                }
+                recvAnswer = (recvAnswer->next);
+            }
+
+            break;
+        }
     }
-
-
 }
