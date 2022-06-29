@@ -18,11 +18,11 @@ Head* headInsertLinklist(Head *list, char *name, unsigned char *ip) {
     strcpy(node->name, name);
     memcpy(node->ip, ip, 4);
     if (list->head != NULL) {
-        list->head->prev->next = node;
-        node->prev = list->head->prev;
-        list->head->prev = node;
-        node->next = list->head;
-        list->head = node;
+        list->head->prev->next = node; /* 将原尾节点的next指针指向新节点 */
+        node->prev = list->head->prev; /* 将新节点的prev指针指向尾节点 */
+        list->head->prev = node; /* 将原头节点的prev指针指向新节点 */
+        node->next = list->head; /* 将新节点的next指针指向原头节点 */
+        list->head = node; /* 将头结点更新为插入的节点*/
     } else {
         list->head = node;
         node->next = node;
@@ -98,6 +98,12 @@ Node *deleteNodeLinklist(Head *list, Node *node) {
     node->next->prev = node->prev;
     if (list != NULL) {
         list->length--;
+    }
+    if(node == list->head) {
+        list->head = node->next;
+    }
+    if(list->length == 0){
+        list->head = NULL;
     }
     return node;
 }

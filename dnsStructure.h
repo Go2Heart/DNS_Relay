@@ -8,6 +8,8 @@
  * @copyright Copyright (c) 2022
  * 
  */
+#ifndef DNSRELAY_DNSSTRUCTURE_H
+#define DNSRELAY_DNSSTRUCTURE_H
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -24,6 +26,7 @@
 #include <stdbool.h>
 
 #endif
+#include <time.h>
 #define BUFSIZE 1024
 #define DNS_SERVER_PORT 53
 #define DNS_SERVER_ADDR "114.114.114.114"
@@ -68,4 +71,9 @@ typedef struct dns_rr {
     struct dns_rr* next;
 } DNS_RR;
 
+typedef struct dns_query {
+    DNS_HEADER* header;
+    DNS_QUESTION* question;
+} DNS_QUERY;
 
+#endif //DNSRELAY_DNSSTRUCTURE_H

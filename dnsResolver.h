@@ -16,6 +16,13 @@ extern void printDnsHeader(DNS_HEADER *header);
 extern void printDnsQuestion(DNS_QUESTION *question);
 extern void printDnsRR(DNS_RR *rr);
 extern void ntohDnsHeader(DNS_HEADER *header);
+extern void ntohDnsQuestion(DNS_QUESTION *question);
+extern void ntohDnsRR(DNS_RR *rr);
+
+extern void htonDnsHeader(DNS_HEADER *header);
+extern void htonDnsQuestion(DNS_QUESTION *question);
+extern void htonDnsRR(DNS_RR *rr);
+
 
 
 

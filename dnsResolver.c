@@ -4,7 +4,7 @@
 
 #include "dnsResolver.h"
 
-extern void printDnsHeader(DNS_HEADER *header) {
+ void printDnsHeader(DNS_HEADER *header) {
     printf("===== DNS Header =====\n");
     printf("id: 0x%x\n", (header->id));
     printf("flags: 0x%x\n", (header->flags));
@@ -15,7 +15,7 @@ extern void printDnsHeader(DNS_HEADER *header) {
     printf("=====================\n");
 }
 
-extern void printDnsQuestion(DNS_QUESTION *question) {
+ void printDnsQuestion(DNS_QUESTION *question) {
     printf("===== DNS Question =====\n");
     printf("qname: %s\n", question->qname);
     printf("qtype: %d\n", (question->qtype));
@@ -23,7 +23,7 @@ extern void printDnsQuestion(DNS_QUESTION *question) {
     printf("=====================\n");
 }
 
-extern void printDnsRR(DNS_RR *rr) {
+ void printDnsRR(DNS_RR *rr) {
     printf("===== DNS RR =====\n");
     printf("name: %s\n", rr->name);
     printf("type: %d\n", (rr->type));
@@ -33,7 +33,7 @@ extern void printDnsRR(DNS_RR *rr) {
     printf("rdata: %s\n", rr->rdata);
     printf("=====================\n");
 }
-extern void ntohDnsHeader(DNS_HEADER *header) {
+ void ntohDnsHeader(DNS_HEADER *header) {
     header->id = ntohs(header->id);
     header->flags = ntohs(header->flags);
     header->qdcount = ntohs(header->qdcount);
@@ -41,22 +41,22 @@ extern void ntohDnsHeader(DNS_HEADER *header) {
     header->nscount = ntohs(header->nscount);
     header->arcount = ntohs(header->arcount);
 }
-extern void ntohDnsQuestion(DNS_QUESTION *question) {
+ void ntohDnsQuestion(DNS_QUESTION *question) {
     question->qtype = ntohs(question->qtype);
     question->qclass = ntohs(question->qclass);
 }
-extern void ntohDnsRR(DNS_RR *rr) {
+ void ntohDnsRR(DNS_RR *rr) {
     rr->type = ntohs(rr->type);
     rr->class = ntohs(rr->class);
     rr->ttl = ntohl(rr->ttl);
     rr->rdlength = ntohs(rr->rdlength);
 }
-extern bool createHeader( DNS_HEADER *header) {
+ bool createHeader( DNS_HEADER *header) {
     if (header == NULL) {
         return false;
     }
     memset(header, 0, sizeof(DNS_HEADER));
-    header->id = htons(getpid());
+    header->id = htons(header->id);
     header->flags = htons(0x0100);
     header->qdcount = htons(1);
     return true;
@@ -197,9 +197,43 @@ int parseResponse(char *response, DNS_HEADER *header, DNS_QUESTION *question, DN
     return cnt;
 
 }
+
+void htonDnsHeader(DNS_HEADER *header) {
+    header->id = htons(header->id);
+    header->qdcount = htons(header->qdcount);
+    header->ancount = htons(header->ancount);
+    header->nscount = htons(header->nscount);
+    header->arcount = htons(header->arcount);
+}
+
+void htonDnsQuestion(DNS_QUESTION *question) {
+    question->qtype = htons(question->qtype);
+    question->qclass = htons(question->qclass);
+}
+
+void htonDnsRR(DNS_RR *rr) {
+    rr->type = htons(rr->type);
+    rr->class = htons(rr->class);
+    rr->ttl = htonl(rr->ttl);
+    rr->rdlength = htons(rr->rdlength);
+    switch (rr->type) {
+        case 0x05:
+            break;
+        case 0x01:
+            for(int i = 0; i < 4; i++) {
+                ;
+            }
+            break;
+        default:
+            break;
+
+    }
+}
+
+
 /*int isPtr(){}*/
 
-extern int dnsQuery(const char*name, Cache* cache)  {
+extern int dnsQuery(const char *name, Cache *cache) {
     unsigned char ip[4] = {0};
     if(queryCache(cache, name, ip)) {
         //found in cache
@@ -253,7 +287,7 @@ extern int dnsQuery(const char*name, Cache* cache)  {
                     //adding to cache
                     struct dns_map *map = (struct dns_map *)malloc(sizeof(struct dns_map));
                     map->name = (uint8_t *)malloc(strlen((char *)recvAnswer->name) + 1);
-                    memcpy(map->name, recvAnswer->name, strlen((char *)recvAnswer->name) + 1);
+                    memcpy(map->name, name, strlen((char *)recvAnswer->name) + 1);
                     memcpy(map->ip, recvAnswer->rdata, 4);
                     insertCache(cache, map->name, map->ip);
                     printCache(cache);
@@ -264,4 +298,5 @@ extern int dnsQuery(const char*name, Cache* cache)  {
             break;
         }
     }
+    return 1;
 }

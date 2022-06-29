@@ -69,3 +69,7 @@ void printCache(Cache *cache) {
     printf("cache size: %d\n", cache->size);
     printLinklist(cache->list);
 }
+
+unsigned char *getFirstCache(Cache *cache) {
+    return cache->list->head->ip;
+}

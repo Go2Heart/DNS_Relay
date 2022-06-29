@@ -10,7 +10,7 @@
 #include "linklist.h"
 #include "trie.h"
 
-#define MAX_CACHE_SIZE 10
+#define MAX_CACHE_SIZE 64
 /*
  * @brief: LRU缓存的定义与实现, 基于双向循环链表和字典树实现了LRU缓存的插入、删除、查找等操作
  * 实现了时间复杂度为O(1)的插入、删除、查找操作
@@ -52,6 +52,13 @@ bool insertCache(Cache* cache ,char* name, unsigned char* ip);
  * @return: 无
  */
 void printCache(Cache* cache);
+
+/*
+ * @brief: 获得缓存中第一个记录的ip地址
+ * @param: cache: 缓存指针
+ * @return: 第一个记录的ip地址
+ */
+unsigned char* getFirstCache(Cache* cache);
 
 
 
