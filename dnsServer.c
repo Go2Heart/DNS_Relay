@@ -55,6 +55,7 @@ DNS_QUERY *receiveDnsQuery(int sockfd) {
     DNS_QUERY *query = (DNS_QUERY *)malloc(sizeof(DNS_QUERY));
     query->header = header;
     query->question = question;
+
     return query;
 }
 void encodeDomainName(uint8_t *buffer, const char *domain)
@@ -94,12 +95,14 @@ int replyDnsQuery(int sockfd, DNS_QUERY *query, DNS_RR *answer) {
     header->flags = htons(0x8180);
     header->ancount = 1;
     header->id = (idTable[query->header->id].id);
+    printf("replying dns query with id: %d\n", header->id);
     htonDnsHeader(header);
 
     //construct dns question
     DNS_QUESTION *question = (DNS_QUESTION *)malloc(sizeof(DNS_QUESTION));
     memset(question, 0, sizeof(DNS_QUESTION));
     createQuestion(question, (const char*)query->question->qname);
+    printf("question qname: %s\n", question->qname);
 
     //memcpy(question, query->question, sizeof(DNS_QUESTION));
     /*htonDnsQuestion(question);
@@ -125,8 +128,8 @@ int replyDnsQuery(int sockfd, DNS_QUERY *query, DNS_RR *answer) {
     len += 4;
     memcpy(buf + len, &rr->rdlength, 2);
     len += 2;
-    memcpy(buf + len, rr->rdata, rr->rdlength);
-    len += rr->rdlength;
+    memcpy(buf + len, rr->rdata, 4);
+    len += 4;
 
     sendto(sockfd, buf, len, 0, (struct sockaddr *)&server_addr, sizeof(server_addr));
     printf("replying dns query to %s:%d\n", inet_ntoa(server_addr.sin_addr), ntohs(server_addr.sin_port));
@@ -135,6 +138,8 @@ int replyDnsQuery(int sockfd, DNS_QUERY *query, DNS_RR *answer) {
     free(header);
     free(question);
     free(rr);
+
+    free(answer);
     return 0;
 }
 

@@ -55,7 +55,7 @@ int main() {
         memcpy(answer->rdata, ip, 4);
         replyDnsQuery(serverFd, temp, answer);
         memset(name, 0, sizeof(name));
-        DNS_QUERY* temp = receiveDnsQuery(serverFd);
+        temp = receiveDnsQuery(serverFd);
         memcpy(name, temp->question->qname, strlen(temp->question->qname));
     }
     /*todo scanf("%s", name);

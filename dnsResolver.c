@@ -281,6 +281,7 @@ extern int dnsQuery(const char *name, Cache *cache) {
             DNS_RR *recvAnswer = (DNS_RR *) malloc(sizeof(DNS_RR)); /* RR linklist head */
             parseResponse(recvbuf, recvHeader, recvQuestion, recvAnswer);
             while(recvAnswer != NULL) {
+                //todo debug here
                 if(recvAnswer->type == 0x01 ) {
                     //If the answer is an A record, we can get the IP address updated in cache
                     printf("%d.%d.%d.%d\n", recvAnswer->rdata[0], recvAnswer->rdata[1], recvAnswer->rdata[2], recvAnswer->rdata[3]);
@@ -294,7 +295,9 @@ extern int dnsQuery(const char *name, Cache *cache) {
                 }
                 recvAnswer = (recvAnswer->next);
             }
-
+            free(recvHeader);
+            free(recvQuestion);
+            free(recvAnswer);
             break;
         }
     }

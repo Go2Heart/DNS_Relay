@@ -11,7 +11,7 @@
 
 #include "linklist.h"
 
-#define MAX_LENGTH 256
+#define MAX_LENGTH 38
 /*
  * @brief: 统一化域名的格式
  * @param: name: 域名

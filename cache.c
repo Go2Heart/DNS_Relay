@@ -24,8 +24,10 @@ bool queryCache(Cache *cache, const char *name, unsigned char *ip) {
     //if found is leaf node, return ip and update LRU
     Node* node = deleteNodeLinklist(cache->list, re->node);
     memcpy(ip, node->ip, 4);
+    //todo update trie's node when deleting node from linklist
     free (node);
-    headInsertLinklist(cache->list, name, ip);
+    Head* head = headInsertLinklist(cache->list, name, ip);
+    re->node = head->head;
     return true;
 }
 

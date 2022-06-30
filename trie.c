@@ -48,7 +48,16 @@ Trie *insertTrie_table(Trie *trie, const char *name, unsigned char *ip) {
     char *newName = formatName(name);
     int name_len = strlen(newName);
     for (int i = 0; i < name_len; i++) {
-        int index = newName[i];
+        int index;
+        if (newName[i] >= 'a' && newName[i] <= 'z') {
+            index = newName[i] - 'a';
+        } else if (newName[i] >= 0 && newName[i] <= 9) {
+            index = newName[i] - '0' + 26;
+        } else if (newName[i] == '-') {
+            index = 36;
+        } else {
+            index = 37;
+        }
         if (trie->children[index] == NULL) {
             trie->children[index] = initTrie();
         }
@@ -72,7 +81,16 @@ Trie *searchTrie(Trie *trie, const char*name) {
     char *newName = formatName(name);
     int name_len = strlen(newName);
     for (int i = 0; i < name_len; i++) {
-        int index = newName[i];
+        int index;
+        if (newName[i] >= 'a' && newName[i] <= 'z') {
+            index = newName[i] - 'a';
+        } else if (newName[i] >= 0 && newName[i] <= 9) {
+            index = newName[i] - '0' + 26;
+        } else if (newName[i] == '-') {
+            index = 36;
+        } else {
+            index = 37;
+        }
         if (trie->children[index] == NULL) {
             return NULL;
         }
@@ -115,7 +133,16 @@ Trie *insertTrie_linklist(Trie *trie, struct linklist_node *node) {
     char *newName = formatName(node->name);
     int name_len = strlen(newName);
     for (int i = 0; i < name_len; i++) {
-        int index = newName[i];
+        int index;
+        if (newName[i] >= 'a' && newName[i] <= 'z') {
+            index = newName[i] - 'a';
+        } else if (newName[i] >= 0 && newName[i] <= 9) {
+            index = newName[i] - '0' + 26;
+        } else if (newName[i] == '-') {
+            index = 36;
+        } else {
+            index = 37;
+        }
         if (trie->children[index] == NULL) {
             trie->children[index] = initTrie();
         }
