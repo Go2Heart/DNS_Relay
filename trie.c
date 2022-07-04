@@ -106,12 +106,13 @@ void deleteTrie(Trie *trie) {
     if (trie == NULL) {
         return;
     }
-    for (int i = 0; i < MAX_LENGTH; i++) {
+    /*for (int i = 0; i < MAX_LENGTH; i++) {
         if (trie->children[i] != NULL) {
             deleteTrie(trie->children[i]); //recursive delete
         }
     }
-    free(trie);
+    free(trie);*/
+    trie->is_leaf_node = false;
 }
 
 Trie *insertTrie_linklist(Trie *trie, struct linklist_node *node) {

@@ -94,16 +94,20 @@ int replyDnsQuery(int sockfd, DNS_QUERY *query, DNS_RR *answer) {
     //construct dns header
     DNS_HEADER *header = (DNS_HEADER *)malloc(sizeof(DNS_HEADER));
     memcpy(header, query->header, sizeof(DNS_HEADER));
-    header->flags = htons(0x8180);
-    header->ancount = 1;
+    //header->flags = htons(query->header->flags);
+    //header->ancount = query->header->ancount;
     header->id = (idTable[query->header->id].id);
     printf("replying dns query with id: %d\n", header->id);
+    printDnsHeader(header);
+    int answerCount = 0;
+    answerCount = query->header->ancount + query->header->nscount + query->header->arcount;
     htonDnsHeader(header);
+
 
     //construct dns question
     DNS_QUESTION *question = (DNS_QUESTION *)malloc(sizeof(DNS_QUESTION));
     memset(question, 0, sizeof(DNS_QUESTION));
-    createQuestion(question, query->question->qname);
+    createQuestion(question, query);
     //printf("question qname: %s\n", question->qname);
 
     //memcpy(question, query->question, sizeof(DNS_QUESTION));
@@ -113,27 +117,15 @@ int replyDnsQuery(int sockfd, DNS_QUERY *query, DNS_RR *answer) {
     encodeDomainName(qname, (char *)question->qname);
     memcpy(question->qname, qname, strlen((char *)qname));*/
     //construct dns answer
-    DNS_RR *rr = (DNS_RR *)malloc(sizeof(DNS_RR));
-    memcpy(rr, answer, sizeof(DNS_RR));
-    htonDnsRR(rr);
-
-    //send back to client
     char buf[BUFSIZE] = {0};
     int len = createRequest(buf, header, question);
-    len += createAnswer(buf + len, rr);
-    /*memcpy(buf + len, rr->name, 2);
-    len += 2;
-    memcpy(buf + len, &rr->type, 2);
-    len += 2;
-    memcpy(buf + len, &rr->class, 2);
-    len += 2;
-    memcpy(buf + len, &rr->ttl, 4);
-    len += 4;
-    memcpy(buf + len, &rr->rdlength, 2);
-    len += 2;
-    memcpy(buf + len, rr->rdata, 4);
-    len += 4;*/
-
+    DNS_RR *rr = (DNS_RR *)malloc(sizeof(*answer));
+    if(answerCount > 0) {
+        memcpy(rr, answer, sizeof(*answer));
+        printDnsRR(rr);
+        len += createAnswer(buf + len, rr);
+        //send back to client
+    }else printf("no answer\n");
     sendto(sockfd, buf, len, 0, (struct sockaddr *)&server_addr, sizeof(server_addr));
     printf("replying dns query to %s:%d\n", inet_ntoa(server_addr.sin_addr), ntohs(server_addr.sin_port));
 

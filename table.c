@@ -3,7 +3,17 @@
 //
 
 #include "table.h"
-
+unsigned int readLine(char *line, unsigned int size, FILE *fp) {
+    unsigned int i = 0;
+    char c;
+    while ((c = fgetc(fp)) != '\n' && c != EOF) {
+        if (i < size) {
+            line[i++] = c;
+        }
+    }
+    line[i] = '\0';
+    return i;
+}
 Trie *loadTable(char *filename) {
     FILE *fp = fopen(filename, "r");
     if (fp == NULL) {
@@ -11,10 +21,12 @@ Trie *loadTable(char *filename) {
     }
     Trie *trie = initTrie();
     char *line = NULL;
-    size_t len = 0;
+    int len = 1024;
     ssize_t read;
-    /*
-    while ((read = getline(&line, &len, fp)) != -1) {
+    char buf[1024];
+    while (fgets(buf, len, fp) != NULL) {
+        line = (char *)malloc(sizeof(buf));
+        memcpy(line, buf, sizeof(buf));
         if (line == "\r\n" || line == "\n") {
             continue;
         }
@@ -28,7 +40,7 @@ Trie *loadTable(char *filename) {
             ip_str = strtok(NULL, ".");
         }
         insertTrie_table(trie, name, ip_bytes);
-    }*/
+    }
     fclose(fp);
     return trie;
 }

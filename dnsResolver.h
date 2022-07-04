@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
+#include <signal.h>
 
 
 static void sig_alarm(int signo) {
@@ -31,12 +32,14 @@ extern void htonDnsRR(DNS_RR *rr);
 
 
 extern bool createHeader(DNS_HEADER *header);
-extern bool createQuestion(DNS_QUESTION *question,  char *name);
+extern bool createQuestion(DNS_QUESTION *question,  DNS_QUERY *query);
 extern int createAnswer(char *buf, DNS_RR *rr);
+extern int constructCacheAnswer(unsigned char *ip, DNS_RR **answer, DNS_HEADER *header);
 extern int createRequest(char *request, DNS_HEADER *header, DNS_QUESTION *question);
 extern int parseName(char *answer, int offset, char *name);
+extern int encodeName(unsigned char *qname, char *buf);
 extern int parseResponse(char *response, DNS_HEADER *header, DNS_QUESTION *question, DNS_RR *answer);
-extern int dnsQuery( char *name, Cache *cache);
+extern int dnsQuery(DNS_QUERY *query, Cache *cache, DNS_HEADER **ansHead, DNS_RR **ansRR);
 
 
 

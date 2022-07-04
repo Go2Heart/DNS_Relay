@@ -56,10 +56,15 @@ bool insertCache(Cache *cache, char *name, unsigned char *ip) {
             deleteTailLinklist(cache->list);
             Head *head = headInsertLinklist(cache->list, node->name, node->ip);
             insertTrie_linklist(cache->trie, head->head);
+            deleteTrie(trie);
         }
     } else {
         //if found, update ip and LRU
+        printf("updating cache\n");
         Node* node = deleteNodeLinklist(cache->list, re->node);
+        if(node == cache->list->head) {
+
+        }
         free (node);
         Head* head = headInsertLinklist(cache->list, name, ip);
         insertTrie_linklist(cache->trie, head->head);
