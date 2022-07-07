@@ -60,7 +60,6 @@ bool insertCache(Cache *cache, char *name, unsigned char *ip) {
         }
     } else {
         //if found, update ip and LRU
-        printf("updating cache\n");
         Node* node = deleteNodeLinklist(cache->list, re->node);
         if(node == cache->list->head) {
 

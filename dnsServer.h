@@ -5,12 +5,16 @@
 #ifndef DNSRELAY_DNSSERVER_H
 #define DNSRELAY_DNSSERVER_H
 
-#include "dnsStructure.h"
+
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include "dnsStructure.h"
+#include "dnsResolver.h"
 
 
 
-struct sockaddr_in server_addr;
+
 /*
  * @brief: initilize the dns server to listen the port
  * @param: port: the port to listen
@@ -23,7 +27,7 @@ extern int initDnsServer(int port);
  * @param: sockfd: the socket fd to receive
  * @return: the dns question
  */
-extern DNS_QUERY * receiveDnsQuery(int sockfd);
+extern int serverRecv(int sockfd, Cache *cache, Trie *staticTable);
 
 /*
  * @brief: reply the dns query to client
@@ -39,7 +43,7 @@ typedef struct new_id {
     int ttl;
     struct sockaddr_in addr;
 }NEW_ID;
-NEW_ID idTable[1024];
+extern NEW_ID idTable[1024];
 
 bool isExpired(NEW_ID id);
 

@@ -40,6 +40,9 @@ extern int parseName(char *answer, int offset, char *name);
 extern int encodeName(unsigned char *qname, char *buf);
 extern int parseResponse(char *response, DNS_HEADER *header, DNS_QUESTION *question, DNS_RR *answer);
 extern int dnsQuery(DNS_QUERY *query, Cache *cache, DNS_HEADER **ansHead, DNS_RR **ansRR);
+int replyDnsQuery(int sockfd, DNS_QUERY *query, DNS_RR *answer);
+int initDnsResolver();
+int clientRecv(Cache *cache);
 
 
 

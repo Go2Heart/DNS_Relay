@@ -4,7 +4,11 @@
 
 #include "dnsResolver.h"
 #include <errno.h>
-
+int clientFd;
+int serverFd;
+struct sockaddr_in clientAddr;
+struct sockaddr_in serverAddr;
+socklen_t addrlen = sizeof(struct sockaddr_in);
  void printDnsHeader(DNS_HEADER *header) {
     printf("===== DNS Header =====\n");
     printf("id: 0x%x\n", (header->id));
@@ -63,39 +67,23 @@
     return true;
 }
 bool createQuestion(DNS_QUESTION *question, DNS_QUERY *query) {
-    char *name = (char*) malloc(strlen(query->question->qname));
-    memcpy(name, query->question->qname, strlen(query->question->qname));
-    if (question == NULL || name == NULL) {
+    if(logLevel >= 3)printf("%s\n", query->question->qname);
+    if (question == NULL) {
         return false;
     }
     memset(question, 0, sizeof(*question));
-    printf("%d\n", strlen(name));
-    question->qname = (uint8_t *)malloc(strlen(name) + 2);
-    memset(question->qname, 0, strlen(name) + 2);
+    question->qname = (uint8_t *)malloc(strlen((char *)query->question->qname) + 2);
+    memset(question->qname, 0, strlen((char *)query->question->qname) + 2);
 
 
     if(question->qname == NULL) {
         return false;
     }
-    encodeName(question->qname, name);
+    printf("name: %s\n", query->question->qname);
+    encodeName(question->qname, query->question->qname);
+    if(logLevel >= 3)printf("%s\n", query->question->qname);
     question->qtype = htons(query->question->qtype);
     question->qclass = htons(query->question->qclass);
-    /*const char delim[2] = ".";
-    char *nameCopy = strdup(name);
-    char *token = strtok(nameCopy, delim);
-    uint8_t *qname = question->qname;
-    question->qname[strlen(name)+1]= '\0';
-    //debug printf("Question name: %s %d\n", name , strlen(question->qname));
-    question->qtype = htons(query->question->qtype);
-    question->qclass = htons(query->question->qclass);
-    while(token != NULL) {
-        size_t len = strlen(token);
-        qname[0] = len;
-        memcpy(qname + 1, token, len);
-        qname += len + 1;
-        token = strtok(NULL, delim);
-    }*/
-
     return true;
 }
 
@@ -156,7 +144,7 @@ int parseResponse(char *response, DNS_HEADER *header, DNS_QUESTION *question, DN
     memcpy(header, response, sizeof(DNS_HEADER));
     ntohDnsHeader(header);
     int len = sizeof(DNS_HEADER);
-    printDnsHeader(header);
+    if(logLevel >= 2)printDnsHeader(header);
     char name[256];
     parseName(response, sizeof(DNS_HEADER), name);
     question->qname = (uint8_t *)malloc(strlen(name) + 1);
@@ -167,7 +155,7 @@ int parseResponse(char *response, DNS_HEADER *header, DNS_QUESTION *question, DN
     memcpy(&question->qclass, response+len, sizeof (question->qclass));
     len += sizeof (question->qclass);
     ntohDnsQuestion(question);
-    printDnsQuestion(question);
+    if(logLevel >= 2)printDnsQuestion(question);
     int ancount = (header->ancount);
     int nscount = (header->nscount);
     int arcount = (header->arcount);
@@ -176,11 +164,13 @@ int parseResponse(char *response, DNS_HEADER *header, DNS_QUESTION *question, DN
         parseName(response, len, answerName);
         unsigned char ptr[2] = {0};
         int ptrFlag = 0;
-        if((unsigned char)(response+len)[0]>>4 == 0xc){
+        if((unsigned char)(response+len)[0]>>4 == 0xc){ /* case PTR */
             ptr[0] = (unsigned char)(response+len)[0];
             ptr[1] = (unsigned char)(response+len)[1];
             ptrFlag = 1;
             len += 2;
+        } else if((unsigned char)(response+len)[0] == 0x0){ /* <Root> */
+            len += 1;
         } else {
             len += (int)strlen(answerName)-1;
         }
@@ -196,12 +186,12 @@ int parseResponse(char *response, DNS_HEADER *header, DNS_QUESTION *question, DN
         len += sizeof (rr->rdlength);
         ntohDnsRR(rr);
         rr->rdata = (uint8_t *)malloc(rr->rdlength);
+        if(ptrFlag) {
+            free(rr->name);
+            rr->name = (unsigned char*) malloc(2);
+            memcpy(rr->name, ptr, 2);
+        }
         if(rr->type == 0x05) { /* CNAME */
-            if(ptrFlag) {
-                free(rr->name);
-                rr->name = (unsigned char*) malloc(2);
-                memcpy(rr->name, ptr, 2);
-            }
             /*if((unsigned char)(response + len)[0] == 0xc0) {
                 rr->rdata = (unsigned char*) malloc(2);
                 memcpy(rr->rdata, response + len, 2);
@@ -215,58 +205,43 @@ int parseResponse(char *response, DNS_HEADER *header, DNS_QUESTION *question, DN
             memcpy(rr->rdata, response+len, rr->rdlength);
             len += rr->rdlength;
         } else if(rr->type == 0x01) { /* A */
-            if(ptrFlag){
+            /*if(ptrFlag){
                 free(rr->name);
                 rr->name = (unsigned char*) malloc(2);
                 memcpy(rr->name, ptr, 2);
-            }
+            }*/
             memcpy(ip, response+len, rr->rdlength);
             len += rr->rdlength;
-            printf("ip: %d.%d.%d.%d\n", ip[0], ip[1], ip[2], ip[3]);
+            if(logLevel >= 3)printf("ip: %d.%d.%d.%d\n", ip[0], ip[1], ip[2], ip[3]);
             rr->rdata = (uint8_t *)malloc(strlen(ip) + 1);
             rr->rdata[4] = '\0';
             memcpy(rr->rdata, ip, strlen(ip) + 1);
             cnt ++;
         } else if(rr->type == 0x1C) { /* AAAA */
-
-
+            memcpy(rr->rdata, response+len, rr->rdlength);
+            len += rr->rdlength;
         } else if(rr->type == 0x06) { /* SOA */
-            /*parseName(response, len, answerName);
-            rr->rdata = (uint8_t *)malloc(strlen(answerName) + 1);
-            memcpy(rr->rdata, answerName, strlen(answerName) + 1);
-            len += rr->rdlength;
-            parseName(response, len, answerName);
-            rr->rdata = (uint8_t *)malloc(strlen(answerName) + 1);
-            memcpy(rr->rdata, answerName, strlen(answerName) + 1);
-            len += rr->rdlength;
-            memcpy(&rr->rdata[strlen(answerName) + 1], response+len, rr->rdlength);
-            len += rr->rdlength;*/
-            if(ptrFlag) {
+            /*if(ptrFlag) {
                 free(rr->name);
                 rr->name = (unsigned char*) malloc(2);
                 memcpy(rr->name, ptr, 2);
-            }
+            }*/
             memcpy(rr->rdata, response+len, rr->rdlength);
+            len += rr->rdlength;
         } else if(rr->type == 0x0F) { /* MX */
             memcpy(&rr->rdata[strlen(answerName) + 1], response+len, rr->rdlength);
             len += rr->rdlength;
         } else if(rr->type == 0x0C) { /* PTR */
-            parseName(response, len, answerName);
-            rr->rdata = (uint8_t *)malloc(strlen(answerName) + 1);
             memcpy(rr->rdata, answerName, strlen(answerName) + 1);
             len += rr->rdlength;
         } else if(rr->type == 0x0A) { /* NS */
-            parseName(response, len, answerName);
-            rr->rdata = (uint8_t *)malloc(strlen(answerName) + 1);
             memcpy(rr->rdata, answerName, strlen(answerName) + 1);
             len += rr->rdlength;
         } else if(rr->type == 0x02) { /* NS */
-            parseName(response, len, answerName);
-            rr->rdata = (uint8_t *)malloc(strlen(answerName) + 1);
             memcpy(rr->rdata, answerName, strlen(answerName) + 1);
             len += rr->rdlength;
         }
-        printDnsRR(rr);
+        if(logLevel >= 2)printDnsRR(rr);
         if(i < ancount + nscount + arcount - 1)rr->next = (struct dns_rr *)malloc(sizeof(DNS_RR)), rr = rr->next;
         
     }
@@ -340,6 +315,7 @@ int createAnswer(char *buf, DNS_RR *rr) {
 
 
 /*int isPtr(){}*/
+/*
 int dnsQuery(DNS_QUERY *query, Cache *cache, DNS_HEADER **ansHead, DNS_RR **ansRR) {
     unsigned char ip[4] = {0};
     char* name = query->question->qname;
@@ -352,16 +328,7 @@ int dnsQuery(DNS_QUERY *query, Cache *cache, DNS_HEADER **ansHead, DNS_RR **ansR
         //not found in cache
         printf("not found in cache\n");
         char buf[BUFSIZE] = {0};
-        int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-        if (sockfd < 0) {
-            perror("socket");
-            exit(-1);
-        }
-        struct sockaddr_in serveraddr;
-        memset(&serveraddr, 0, sizeof(serveraddr));
-        serveraddr.sin_family = AF_INET;
-        serveraddr.sin_port = htons(DNS_SERVER_PORT);
-        serveraddr.sin_addr.s_addr = inet_addr(DNS_SERVER_ADDR);
+
         DNS_HEADER header = {0};
         createHeader(&header);
         DNS_QUESTION question = {0};
@@ -378,7 +345,7 @@ int dnsQuery(DNS_QUERY *query, Cache *cache, DNS_HEADER **ansHead, DNS_RR **ansR
         alarmact.sa_flags = SA_NODEFER;
 
         sigaction(SIGALRM,&alarmact,NULL);
-        int nbytes = sendto(sockfd, buf, reqLen, 0, (struct sockaddr *)&serveraddr, sizeof(serveraddr));
+        int nbytes = sendto(sockfd, buf, reqLen, 0, (struct sockaddr *)&server_addr, sizeof(server_addr));
         if (nbytes < 0) {
             perror("sendto");
             return -1;
@@ -405,7 +372,7 @@ int dnsQuery(DNS_QUERY *query, Cache *cache, DNS_HEADER **ansHead, DNS_RR **ansR
             alarm(0);
             DNS_HEADER *recvHeader = (DNS_HEADER *) malloc(sizeof(DNS_HEADER));
             DNS_QUESTION *recvQuestion = (DNS_QUESTION *) malloc(sizeof(DNS_QUESTION));
-            DNS_RR *recvAnswer = (DNS_RR *) malloc(sizeof(DNS_RR)); /* RR linklist head */
+            DNS_RR *recvAnswer = (DNS_RR *) malloc(sizeof(DNS_RR)); /* RR linklist head
             parseResponse(recvbuf, recvHeader, recvQuestion, recvAnswer);
             //recvAnswer = (recvAnswer->next);
             DNS_RR *linklist = recvAnswer->next;
@@ -437,10 +404,10 @@ int dnsQuery(DNS_QUERY *query, Cache *cache, DNS_HEADER **ansHead, DNS_RR **ansR
             //free(recvAnswer);
             break;
         }
-        close(sockfd);
+
     }
     return 2; //not in cache, forwarding to client
-}
+}*/
 
 int constructCacheAnswer(unsigned char *ip, DNS_RR **answer, DNS_HEADER *header) {
     header->flags = 0x8180;
@@ -473,5 +440,67 @@ int encodeName(unsigned char *qname, char *name) {
         qname += len + 1;
         token = strtok(NULL, delim);
     }
+
+    return 1;
+}
+
+int initDnsResolver() {
+    int sockFd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sockFd < 0) {
+        perror("socket");
+        exit(-1);
+    }
+
+    memset(&serverAddr, 0, sizeof(serverAddr));
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(DNS_SERVER_PORT);
+    serverAddr.sin_addr.s_addr = inet_addr(DNS_SERVER_ADDR);
+
+    return sockFd;
+
+}
+
+int clientRecv(Cache *cache) {
+    char recvbuf[BUFSIZE] = {0};
+    if (recvfrom(serverFd, recvbuf, sizeof(recvbuf), 0, (struct sockaddr *)&serverAddr, &addrlen) < 0) {
+        //perror("recvfrom error");
+            printf("recvfrom error\n");
+            close(serverFd);
+            return -1;
+
+    }
+    DNS_HEADER *recvHeader = (DNS_HEADER *) malloc(sizeof(DNS_HEADER));
+    DNS_QUESTION *recvQuestion = (DNS_QUESTION *) malloc(sizeof(DNS_QUESTION));
+    DNS_RR *recvAnswer = (DNS_RR *) malloc(sizeof(DNS_RR)); /* RR linklist head */
+    parseResponse(recvbuf, recvHeader, recvQuestion, recvAnswer);
+    //recvAnswer = (recvAnswer->next);
+    DNS_RR *linklist = recvAnswer->next;
+    unsigned char* name = recvQuestion->qname;
+    while(linklist != NULL) {
+        if(linklist->type == 0x01 ) {
+            //If the answer is an A record, we can get the IP address updated in cache
+            if(logLevel >= 3)printf("%d.%d.%d.%d\n", linklist->rdata[0], linklist->rdata[1], linklist->rdata[2], linklist->rdata[3]);
+            //adding to cache
+            struct dns_map *map = (struct dns_map *)malloc(sizeof(struct dns_map));
+            map->name = (uint8_t *)malloc(strlen(name) + 1);
+            memcpy(map->name, name, strlen(name) + 1);
+            memcpy(map->ip, linklist->rdata, 4);
+            insertCache(cache, map->name, map->ip);
+            if(logLevel >= 3)printCache(cache);
+        }
+        linklist = (linklist->next);
+    }
+
+
+    if(logLevel >= 2)printf("not in cache, using forwarder\n");
+    DNS_QUERY *pQuery = (DNS_QUERY *)malloc(sizeof(DNS_QUERY));
+    pQuery->header = recvHeader;
+    pQuery->question = recvQuestion;
+    replyDnsQuery(clientFd, pQuery, recvAnswer->next);
+
+    free(recvHeader);
+    free(recvQuestion);
+    free(recvAnswer);
+
     return 1;
 }

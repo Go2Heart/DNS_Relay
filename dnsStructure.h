@@ -26,6 +26,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <sys/select.h>
 
 #include <errno.h>
 
@@ -36,15 +37,25 @@
 #define BUFSIZE 1024
 #define DNS_SERVER_PORT 53
 #define DNS_SERVER_ADDR "114.114.114.114"
+#define MAX_HOST 32
+
+#define DEBUG 3
+#define INFO 2
+#define NONE 1
+extern int logLevel;
+
 /**
  * @brief the structure of a dns packet header
  * 
  */
 typedef struct dns_map {
-    char *name;
+    unsigned char *name;
     unsigned char ip[4];
 } DNS_MAP;
-
+extern int serverFd;
+extern int clientFd;
+extern struct sockaddr_in clientAddr;
+extern struct sockaddr_in serverAddr;
 typedef struct dns_header {
     uint16_t id;
     uint16_t flags;

@@ -8,7 +8,9 @@
 #include "table.h"
 #include "dnsResolver.h"
 #include "dnsServer.h"
-
+int clientFd;
+int serverFd;
+int logLevel = 0;
 int main() {
 #ifdef _WIN32
     /**
@@ -22,6 +24,10 @@ int main() {
     }
 
 #endif
+    printf("Welcome to DNS Relay!\n");
+    printf("the log level: 1.none 2.info 3.debug\n");
+    scanf("%d", &logLevel);
+
     //read local static table
     Trie* staticTable = loadTable("../localTable.txt");
     Cache *cache = (Cache*)malloc(sizeof(Cache));
@@ -29,13 +35,40 @@ int main() {
         printf("init cache failed\n");
         return -1;
     }
+
+
     //printTrie(staticTable, 30);
-    int serverFd=initDnsServer(53);
-    unsigned char* ip = "";
+    clientFd=initDnsServer(53);
+    serverFd=initDnsResolver();
+    fd_set fdSet;
+    struct timeval timeout = {0, 50};
+    while(1) {
+        FD_ZERO(&fdSet);
+        FD_SET(clientFd, &fdSet);
+        FD_SET(serverFd, &fdSet);
+
+        int ret = select(MAX_HOST, &fdSet, NULL, NULL, &timeout);
+        if (ret == -1) {
+            perror("select");
+            return -1;
+        } else if (ret == 0) {
+            continue;
+        } else {
+            if (FD_ISSET(clientFd, &fdSet)) {
+                serverRecv(clientFd,cache, staticTable);
+            }
+            if (FD_ISSET(serverFd, &fdSet)) {
+                clientRecv(cache);
+            }
+        }
+
+    }
+}
+    /*unsigned char* ip = "";
     char name[256] = {0};
     while(true) {
         memset(name, 0, sizeof(name));
-        DNS_QUERY* pQuery = receiveDnsQuery(serverFd);
+        DNS_QUERY* pQuery = serverRecv(serverFd);
         memcpy(name, pQuery->question->qname, strlen(pQuery->question->qname));
         //query the static table
         Trie *result = searchTrie(staticTable, name);
@@ -79,3 +112,4 @@ int main() {
     }
     return 0;
 }
+*/
