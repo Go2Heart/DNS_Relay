@@ -16,7 +16,7 @@ bool initCache(Cache *cache) {
     return true;
 }
 
-bool queryCache(Cache *cache, const char *name, unsigned char *ip) {
+bool queryCache(Cache *cache, const char *name, Ip *ip) {
     Trie* re = searchTrie(cache->trie, name);
     if(re == NULL || re->is_leaf_node == false) {
         return false;
@@ -24,6 +24,7 @@ bool queryCache(Cache *cache, const char *name, unsigned char *ip) {
     //if found is leaf node, return ip and update LRU
     Node* node = deleteNodeLinklist(cache->list, re->node);
     memcpy(ip, node->ip, 4);
+    memcpy(ip, re->node->ipHead, sizeof(*re->node->ipHead));
     //todo update trie's node when deleting node from linklist
     free (node);
     Head* head = headInsertLinklist(cache->list, (char *)name, ip);
@@ -50,7 +51,6 @@ bool insertCache(Cache *cache, char *name, unsigned char *ip) {
         } else {
             //if cache is full, delete tail node and insert into cache
             //change original tail node record to static table
-            // todo  change head needed?
             Trie* trie = searchTrie(cache->trie, cache->list->head->prev->name);
             trie->is_leaf_node = false;
             deleteTailLinklist(cache->list);
@@ -61,9 +61,6 @@ bool insertCache(Cache *cache, char *name, unsigned char *ip) {
     } else {
         //if found, update ip and LRU
         Node* node = deleteNodeLinklist(cache->list, re->node);
-        if(node == cache->list->head) {
-
-        }
         free (node);
         Head* head = headInsertLinklist(cache->list, name, ip);
         insertTrie_linklist(cache->trie, head->head);
@@ -71,9 +68,10 @@ bool insertCache(Cache *cache, char *name, unsigned char *ip) {
     return true;
 }
 
-void printCache(Cache *cache) {
+void printCache(Cache *cache, FILE* fp) {
     printf("cache size: %d\n", cache->size);
-    printLinklist(cache->list);
+    fprintf(fp, "cache size: %d\n", cache->size);
+    printLinklist(cache->list, fp);
 }
 
 unsigned char *getFirstCache(Cache *cache) {

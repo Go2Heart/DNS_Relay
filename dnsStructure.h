@@ -1,3 +1,4 @@
+/** @file */
 /**
  * @file dnsStructure.h
  * @author Go2Heart (yanyibin@bupt.edu.cn)
@@ -32,30 +33,28 @@
 
 
 #endif
+#include <fcntl.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <time.h>
+#include <stdio.h>
 #define BUFSIZE 1024
 #define DNS_SERVER_PORT 53
 #define DNS_SERVER_ADDR "114.114.114.114"
 #define MAX_HOST 32
 
-#define DEBUG 3
-#define INFO 2
-#define NONE 1
+extern char* logName;
+extern FILE* logFile;
 extern int logLevel;
 
-/**
- * @brief the structure of a dns packet header
- * 
- */
-typedef struct dns_map {
-    unsigned char *name;
-    unsigned char ip[4];
-} DNS_MAP;
+
 extern int serverFd;
 extern int clientFd;
 extern struct sockaddr_in clientAddr;
 extern struct sockaddr_in serverAddr;
+/**
+ * @brief the structure of a dns packet header
+ */
 typedef struct dns_header {
     uint16_t id;
     uint16_t flags;
@@ -64,6 +63,7 @@ typedef struct dns_header {
     uint16_t nscount;
     uint16_t arcount;
 } DNS_HEADER;
+
 /**
  * @brief the structure of a dns question
  * 
@@ -75,7 +75,7 @@ typedef struct dns_question {
 } DNS_QUESTION;
 
 /**
- * @brief 
+ * @brief the structure of a dns answer
  * 
  */
 typedef struct dns_rr {
@@ -88,9 +88,22 @@ typedef struct dns_rr {
     struct dns_rr* next;
 } DNS_RR;
 
+/**
+ * @brief the structure of a dns packet header
+ *
+ */
+typedef struct dns_map {
+    unsigned char *name;
+    unsigned char ip[4];
+} DNS_MAP;
+
+/**
+ * @brief the structure of a dns query which includes a dns header and a dns question
+ */
 typedef struct dns_query {
     DNS_HEADER* header;
     DNS_QUESTION* question;
 } DNS_QUERY;
+
 
 #endif //DNSRELAY_DNSSTRUCTURE_H

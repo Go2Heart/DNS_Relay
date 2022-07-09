@@ -82,13 +82,13 @@ Trie *searchTrie(Trie *trie, const char*name) {
     int name_len = strlen(newName);
     for (int i = 0; i < name_len; i++) {
         int index;
-        if (newName[i] >= 'a' && newName[i] <= 'z') {
+        if (newName[i] >= 'a' && newName[i] <= 'z') { /* 小写字母 */
             index = newName[i] - 'a';
-        } else if (newName[i] >= 0 && newName[i] <= 9) {
+        } else if (newName[i] >= 0 && newName[i] <= 9) { /* 数字 */
             index = newName[i] - '0' + 26;
-        } else if (newName[i] == '-') {
+        } else if (newName[i] == '-') { /* - */
             index = 36;
-        } else {
+        } else { /* . */
             index = 37;
         }
         if (trie->children[index] == NULL) {

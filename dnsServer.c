@@ -14,7 +14,7 @@ int initDnsServer(int port) {
     if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         perror("socket error");
         printf("%s\n",strerror(errno));
-        //return -1;
+        return -1;
     }
 
     memset(&clientAddr, 0, sizeof(clientAddr));
@@ -23,7 +23,7 @@ int initDnsServer(int port) {
     clientAddr.sin_port = htons(port);
     if (bind(sockfd, (struct sockaddr *) &clientAddr, sizeof(clientAddr)) < 0) {
         perror("bind error");
-        //return -1;
+        return -1;
     }
     return sockfd;
 }
@@ -77,14 +77,21 @@ int serverRecv(int sockfd, Cache *cache, Trie *staticTable) {
             replyDnsQuery(sockfd, query, answer);
         }
     } else {
+        if(logLevel >= 2)printf("Cache miss!\n");
         Trie *result = searchTrie(staticTable, name);
         if(result != NULL) {
             memcpy(ip, result->ip, 4);
             DNS_RR *answer=NULL;
+            if(ip[0] == 0 && ip[1] == 0 && ip[2] == 0 && ip[3] == 0) {
+                if(logLevel >= 2)printf("Blocked site queried!\n");
+                replyDnsQuery(sockfd, query, NULL);
+                return 1;
+            }
             if(constructCacheAnswer(ip, &answer, query->header) == -1) {
                 printf("construct answer failed\n");
                 return -1;
             }
+
             replyDnsQuery(sockfd, query, answer);
         } else {
             /* query dns server */
@@ -110,7 +117,7 @@ int serverRecv(int sockfd, Cache *cache, Trie *staticTable) {
         free(header);
         free(question);
     }
-    if(logLevel >= 2)printf("Cache miss!\n");
+
 
     return 1;
 }
@@ -148,8 +155,6 @@ int replyDnsQuery(int sockfd, DNS_QUERY *query, DNS_RR *answer) {
     //construct dns header
     DNS_HEADER *header = (DNS_HEADER *)malloc(sizeof(DNS_HEADER));
     memcpy(header, query->header, sizeof(DNS_HEADER));
-    //header->flags = htons(query->header->flags);
-    //header->ancount = query->header->ancount;
     header->id = (idTable[query->header->id].id);
     if(logLevel >= 2)printf("replying dns query with id: %d\n", header->id);
     if(logLevel >= 2)printDnsHeader(header);
@@ -178,7 +183,7 @@ int replyDnsQuery(int sockfd, DNS_QUERY *query, DNS_RR *answer) {
     free(rr);
 
     free(answer);
-    return 0;
+    return 1;
 }
 
 bool isExpired(NEW_ID id) {
@@ -187,7 +192,7 @@ bool isExpired(NEW_ID id) {
 
 uint16_t getNewId(uint16_t id, struct sockaddr_in addr) {
     uint16_t i;
-    for (i = 0; i < 1024; ++i) {
+    for (i = 0; i < 65535; ++i) {
         if(isExpired(idTable[i])) {
             idTable[i].id = id;
             idTable[i].ttl = time(NULL) + 10;

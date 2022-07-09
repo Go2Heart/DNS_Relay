@@ -3,17 +3,6 @@
 //
 
 #include "table.h"
-unsigned int readLine(char *line, unsigned int size, FILE *fp) {
-    unsigned int i = 0;
-    char c;
-    while ((c = fgetc(fp)) != '\n' && c != EOF) {
-        if (i < size) {
-            line[i++] = c;
-        }
-    }
-    line[i] = '\0';
-    return i;
-}
 Trie *loadTable(char *filename) {
     FILE *fp = fopen(filename, "r");
     if (fp == NULL) {
