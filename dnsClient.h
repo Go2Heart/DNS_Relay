@@ -9,15 +9,15 @@
 
 
 /**
- * @details init dns client
- * @return
+ * @details 初始化dns client
+ * @return sockfd: 初始化成功后的socket描述符
  */
 int initDnsClient();
 
 /**
- * @details when dns client receive a packet, it will call this function to process it
+ * @details 当客户端收到本地用户报文时，调用该函数
  * @param cache
- * @return
+ * @return error code
  */
 int clientRecv(Cache *cache);
 

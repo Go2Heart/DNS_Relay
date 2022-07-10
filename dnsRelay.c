@@ -5,8 +5,8 @@
 #include "table.h"
 #include "dnsServer.h"
 #include "dnsClient.h"
-int clientFd;
 int serverFd;
+int clientFd;
 int logLevel = 0;
 char* logName;
 FILE* logFile;
@@ -51,29 +51,28 @@ int main() {
         printf("init cache failed\n");
         return -1;
     }
-    clientFd=initDnsServer(53);
-    serverFd=initDnsClient();
+    serverFd=initDnsServer(53);
+    clientFd=initDnsClient();
     fd_set fdSet;
-    struct timeval timeout = {0, 50};
+    struct timeval timeout = {0, 10}; /* 50ms */
     while(1) {
-        FD_ZERO(&fdSet);
-        FD_SET(clientFd, &fdSet);
-        FD_SET(serverFd, &fdSet);
+        FD_ZERO(&fdSet); /* 清空fdSet */
+        FD_SET(serverFd, &fdSet); /* 把serverFd加入到fdSet */
+        FD_SET(clientFd, &fdSet); /* 把clientFd加入到fdSet */
 
-        int ret = select(MAX_HOST, &fdSet, NULL, NULL, &timeout);
-        if (ret == -1) {
+        int ret = select(MAX_HOST, &fdSet, NULL, NULL, &timeout); /* 等待某个文件描述符就绪 */
+        if (ret == -1) { /* select失败 */
             perror("select");
             return -1;
-        } else if (ret == 0) {
+        } else if (ret == 0) { /* select超时 */
             continue;
         } else {
-            if (FD_ISSET(clientFd, &fdSet)) {
-                serverRecv(clientFd,cache, staticTable);
+            if (FD_ISSET(serverFd, &fdSet)) { /* serverFd就绪 */
+                serverRecv(serverFd, cache, staticTable);
             }
-            if (FD_ISSET(serverFd, &fdSet)) {
+            if (FD_ISSET(clientFd, &fdSet)) { /* clientFd就绪 */
                 clientRecv(cache);
             }
         }
-
     }
 }

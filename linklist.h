@@ -15,16 +15,24 @@
 /**
  * @brief: 循环双向链表的定义与实现
  */
+/**
+ * @brief ip链表的节点结构体
+ */
 typedef struct linklist_ip{
     unsigned char ip[4];
     struct linklist_ip *next;
 } Ip;
 /**
+ * @brief 复制一个Ip结构体
+ * @param dest
+ * @param src
+ */
+void copyIp(Ip *dest, Ip *src);
+/**
  * @brief 链表节点的定义
  */
 typedef struct linklist_node {
     char name[256];
-    unsigned char ip[4];
     struct linklist_ip *ipHead;
     unsigned int ttl;
     struct linklist_node *next;
@@ -51,7 +59,7 @@ Head* initLinklist(Head* head);
  * @param: ip: ip地址
  * @return: 插入成功返回链表头指针，失败返回NULL
  */
-Head* headInsertLinklist(Head* list, char* name, unsigned char* ip);
+Head* headInsertLinklist(Head* list, char* name, Ip *ip);
 /**
  * @brief: 删除尾节点
  * @param: list: 链表头指针

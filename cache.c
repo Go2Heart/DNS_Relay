@@ -23,8 +23,13 @@ bool queryCache(Cache *cache, const char *name, Ip *ip) {
     }
     //if found is leaf node, return ip and update LRU
     Node* node = deleteNodeLinklist(cache->list, re->node);
-    memcpy(ip, node->ip, 4);
-    memcpy(ip, re->node->ipHead, sizeof(*re->node->ipHead));
+    //memcpy(ip, node->ip, 4);
+    copyIp(ip, node->ipHead);
+    while(node->ipHead != NULL) {
+        Ip *oldIp = node->ipHead;
+        node->ipHead = node->ipHead->next;
+        free(oldIp);
+    }
     //todo update trie's node when deleting node from linklist
     free (node);
     Head* head = headInsertLinklist(cache->list, (char *)name, ip);
@@ -32,7 +37,10 @@ bool queryCache(Cache *cache, const char *name, Ip *ip) {
     return true;
 }
 
-bool insertCache(Cache *cache, char *name, unsigned char *ip) {
+bool insertCache(Cache *cache, char *name, Ip *ip) {
+    if(ip->next == NULL) {
+        return false;
+    }
     Trie* re = searchTrie(cache->trie, name);
     if(re == NULL) {
         //if not found, insert into trie
@@ -41,11 +49,13 @@ bool insertCache(Cache *cache, char *name, unsigned char *ip) {
             return false;
         }
         strcpy(node->name, name);
-        memcpy(node->ip, ip, 4);
+        //memcpy(node->ip, ip, 4);
+        node->ipHead = malloc(sizeof(Ip));
+        copyIp(node->ipHead, ip);
 
         if(cache->size < MAX_CACHE_SIZE) {
             //if cache is not full, insert into cache
-            Head *head = headInsertLinklist(cache->list, node->name, node->ip);
+            Head *head = headInsertLinklist(cache->list, node->name, node->ipHead);
             insertTrie_linklist(cache->trie, head->head);
             cache->size++;
         } else {
@@ -54,13 +64,18 @@ bool insertCache(Cache *cache, char *name, unsigned char *ip) {
             Trie* trie = searchTrie(cache->trie, cache->list->head->prev->name);
             trie->is_leaf_node = false;
             deleteTailLinklist(cache->list);
-            Head *head = headInsertLinklist(cache->list, node->name, node->ip);
+            Head *head = headInsertLinklist(cache->list, node->name, node->ipHead);
             insertTrie_linklist(cache->trie, head->head);
             deleteTrie(trie);
         }
     } else {
         //if found, update ip and LRU
         Node* node = deleteNodeLinklist(cache->list, re->node);
+        while(node->ipHead != NULL) {
+            Ip *oldIp = node->ipHead;
+            node->ipHead = node->ipHead->next;
+            free(oldIp);
+        }
         free (node);
         Head* head = headInsertLinklist(cache->list, name, ip);
         insertTrie_linklist(cache->trie, head->head);
@@ -74,6 +89,3 @@ void printCache(Cache *cache, FILE* fp) {
     printLinklist(cache->list, fp);
 }
 
-unsigned char *getFirstCache(Cache *cache) {
-    return cache->list->head->ip;
-}

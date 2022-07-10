@@ -7,7 +7,7 @@
 #include "dnsServer.h"
 struct sockaddr_in clientAddr;
 struct sockaddr_in serverAddr;
-NEW_ID idTable[1024];
+NEW_ID idTable[65535];
 
 int initDnsServer(int port) {
     int sockfd;
@@ -62,12 +62,14 @@ int serverRecv(int sockfd, Cache *cache, Trie *staticTable) {
     query->header = header;
     query->question = question;
 
-    unsigned char ip[4] = {0};
+    Ip* ip = (Ip*)malloc(sizeof(Ip));
+    ip->next = NULL;
     if(question->qtype == 1 && queryCache(cache, name, ip)) { //only query A type in cache
-        if(ip[0] == 0 && ip[1] == 0 && ip[2] == 0 && ip[3] == 0) {
+        /*if(ip->ip[0] == 0 && ip->ip[1] == 0 && ip->ip[2] == 0 && ip->ip[3] == 0) {
             if(logLevel >= 2)printf("Blocked site queried!\n");
             replyDnsQuery(sockfd, query, NULL);
-        } else {
+        } else */
+        {
             if(logLevel >= 2)printf("Cache hit!\n");
             DNS_RR *answer=NULL;
             if(constructCacheAnswer(ip, &answer, query->header) == -1) {
@@ -80,9 +82,12 @@ int serverRecv(int sockfd, Cache *cache, Trie *staticTable) {
         if(logLevel >= 2)printf("Cache miss!\n");
         Trie *result = searchTrie(staticTable, name);
         if(result != NULL) {
-            memcpy(ip, result->ip, 4);
+            if(logLevel >= 2)printf("Static table hit!\n");
+            ip->next = malloc(sizeof(Ip));
+            ip->next->next = NULL;
+            memcpy(ip->next->ip, result->ip, 4);
             DNS_RR *answer=NULL;
-            if(ip[0] == 0 && ip[1] == 0 && ip[2] == 0 && ip[3] == 0) {
+            if(ip->next->ip[0] == 0 && ip->next->ip[1] == 0 && ip->next->ip[2] == 0 && ip->next->ip[3] == 0) {
                 if(logLevel >= 2)printf("Blocked site queried!\n");
                 replyDnsQuery(sockfd, query, NULL);
                 return 1;
@@ -106,7 +111,7 @@ int serverRecv(int sockfd, Cache *cache, Trie *staticTable) {
                 return -1;
             }
 
-            int nbytes = sendto(serverFd, buf, reqLen, 0, (struct sockaddr *)&serverAddr, sizeof(serverAddr));
+            int nbytes = sendto(clientFd, buf, reqLen, 0, (struct sockaddr *)&serverAddr, sizeof(serverAddr));
             if (nbytes < 0) {
                 perror("sendto");
                 return -1;
@@ -160,6 +165,9 @@ int replyDnsQuery(int sockfd, DNS_QUERY *query, DNS_RR *answer) {
     if(logLevel >= 2)printDnsHeader(header);
     int answerCount = 0;
     answerCount = query->header->ancount + query->header->nscount + query->header->arcount;
+    if (answerCount == 0) {
+        header->flags = 0x8183; /* Non-existent domain */
+    }
     htonDnsHeader(header);
     //construct dns question
     DNS_QUESTION *question = (DNS_QUESTION *)malloc(sizeof(DNS_QUESTION));
@@ -195,7 +203,7 @@ uint16_t getNewId(uint16_t id, struct sockaddr_in addr) {
     for (i = 0; i < 65535; ++i) {
         if(isExpired(idTable[i])) {
             idTable[i].id = id;
-            idTable[i].ttl = time(NULL) + 10;
+            idTable[i].ttl = time(NULL) + 10; //current time + 10 seconds
             idTable[i].addr = addr;
             return i;
         }

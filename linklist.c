@@ -10,17 +10,18 @@ Head *initLinklist(Head *head) {
     return head;
 }
 
-Head* headInsertLinklist(Head *list,char *name, unsigned char *ip) {
+Head* headInsertLinklist(Head *list, char *name, Ip *ip) {
     Node *node = (Node *)malloc(sizeof(Node));
     if (node == NULL) {
         return NULL;
     }
     strcpy(node->name, name);
-    memcpy(node->ip, ip, 4);
+    node->ipHead = malloc(sizeof(Ip));
+    copyIp(node->ipHead, ip);
     if (list->head != NULL) {
-        list->head->prev->next = node; /* 将原尾节点的next指针指向新节�? */
-        node->prev = list->head->prev; /* 将新节点的prev指针指向尾节�? */
-        list->head->prev = node; /* 将原头节点的prev指针指向新节�? */
+        list->head->prev->next = node; /* 将原尾节点的next指针指向新节点 */
+        node->prev = list->head->prev; /* 将新节点的prev指针指向尾节点 */
+        list->head->prev = node; /* 将原头节点的prev指针指向新节点 */
         node->next = list->head; /* 将新节点的next指针指向原头节点 */
         list->head = node; /* 将头结点更新为插入的节点*/
     } else {
@@ -73,15 +74,33 @@ void printLinklist(Head *list, FILE *fp) {
     while (i < list->length) {
 
         printf("No.%d node name: %s ", i, node->name);
-        printf("node ip: %d.%d.%d.%d\n", node->ip[0], node->ip[1], node->ip[2], node->ip[3]);
         fprintf(fp, "No.%d node name: %s ", i, node->name);
-        fprintf(fp, "%s %d.%d.%d.%d\n", node->name, node->ip[0], node->ip[1], node->ip[2], node->ip[3]);
+        Ip* ip = node->ipHead;
+        while(node->ipHead->next != NULL) {
+            printf("ip: %d.%d.%d.%d ", node->ipHead->next->ip[0], node->ipHead->next->ip[1], node->ipHead->next->ip[2], node->ipHead->next->ip[3]);
+            fprintf(fp, "ip: %d.%d.%d.%d ", node->ipHead->next->ip[0], node->ipHead->next->ip[1], node->ipHead->next->ip[2], node->ipHead->next->ip[3]);
+            node->ipHead = node->ipHead->next;
+        }
+        printf("\n");
+        fprintf(fp, "\n");
+        node->ipHead = ip;
         node = node->next;
         i++;
     }
 
 }
 
+void copyIp(Ip *dest, Ip *src) {
+    Ip *dest_ip = dest;
+    while(src->next != NULL) {
+        dest->next = (Ip *)malloc(sizeof(Ip));
+        memcpy(dest->next->ip, src->next->ip, 4);
+        dest = dest->next;
+        src = src->next;
+    }
+    dest->next = NULL;
+    dest = dest_ip;
+}
 
 
 

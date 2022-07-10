@@ -22,9 +22,9 @@ int initDnsClient() {
 
 int clientRecv(Cache *cache) {
     char recvbuf[BUFSIZE] = {0};
-    if (recvfrom(serverFd, recvbuf, sizeof(recvbuf), 0, (struct sockaddr *)&serverAddr, &addrlen) < 0) {
+    if (recvfrom(clientFd, recvbuf, sizeof(recvbuf), 0, (struct sockaddr *)&serverAddr, &addrlen) < 0) {
         perror("recvfrom error");
-        close(serverFd);
+        close(clientFd);
         return -1;
 
     }
@@ -35,27 +35,29 @@ int clientRecv(Cache *cache) {
     //recvAnswer = (recvAnswer->next);
     DNS_RR *linklist = recvAnswer->next;
     unsigned char* name = recvQuestion->qname;
+    Ip *cacheIp = (Ip *)malloc(sizeof(Ip));
+    cacheIp->next = NULL;
+    Ip *ip = cacheIp;
     while(linklist != NULL) {
         if(linklist->type == 0x01 ) {
             //If the answer is an A record, we can get the IP address updated in cache
             if(logLevel >= 3)printf("%d.%d.%d.%d\n", linklist->rdata[0], linklist->rdata[1], linklist->rdata[2], linklist->rdata[3]);
             //adding to cache
-            struct dns_map *map = (struct dns_map *)malloc(sizeof(struct dns_map));
-            map->name = (uint8_t *)malloc(strlen(name) + 1);
-            memcpy(map->name, name, strlen(name) + 1);
-            memcpy(map->ip, linklist->rdata, 4);
-            insertCache(cache, map->name, map->ip);
-            if(logLevel >= 3)printCache(cache, logFile);
+            ip->next = malloc(sizeof(Ip));
+            memcpy(ip->next->ip, linklist->rdata, 4);
+            ip->next->next = NULL;
+            ip = ip->next;
         }
         linklist = (linklist->next);
     }
-
+    insertCache(cache, name, cacheIp);
+    if(logLevel >= 3)printCache(cache, logFile);
 
     if(logLevel >= 2)printf("not in cache, using forwarder\n");
     DNS_QUERY *pQuery = (DNS_QUERY *)malloc(sizeof(DNS_QUERY));
     pQuery->header = recvHeader;
     pQuery->question = recvQuestion;
-    replyDnsQuery(clientFd, pQuery, recvAnswer->next);
+    replyDnsQuery(serverFd, pQuery, recvAnswer->next);
 
     free(recvHeader);
     free(recvQuestion);

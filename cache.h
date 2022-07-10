@@ -22,7 +22,6 @@ typedef struct cache {
 
 /**
  * @callgraph
- * @details 初始化缓存
  * @brief: 初始化缓存
  * @param: cache: 缓存指针
  */
@@ -35,7 +34,7 @@ bool initCache(Cache* cache);
  * @brief: 查询缓存中是否存在某个域名
  * @param: cache: 缓存指针
  * @param: name: 域名
- * @param: ip: ip地址
+ * @param: ip: ip地址链表
  * @return: 存在返回true，并且更新ip地址，不存在返回false
  */
 bool queryCache(Cache* cache , const char *name, Ip *ip);
@@ -44,10 +43,10 @@ bool queryCache(Cache* cache , const char *name, Ip *ip);
  * @brief: 向缓存中插入一个记录
  * @param: cache: 缓存指针
  * @param: name: 域名
- * @param: ip: ip地址
+ * @param: ip: ip地址链表
  * @return: 插入成功返回true，失败返回false
  */
-bool insertCache(Cache* cache ,char* name, unsigned char* ip);
+bool insertCache(Cache* cache , char* name, Ip *ip);
 /**
  * @brief: 打印缓存中的所有记录
  * @param: cache: 缓存指针
@@ -55,17 +54,5 @@ bool insertCache(Cache* cache ,char* name, unsigned char* ip);
  * @return: 无
  */
 void printCache(Cache* cache, FILE* fp);
-
-/**
- * @brief: 获得缓存中第一个记录的ip地址
- * @param: cache: 缓存指针
- * @return: 第一个记录的ip地址
- */
-unsigned char* getFirstCache(Cache* cache);
-
-
-
-
-
 
 #endif //DNSRELAY_CACHE_H

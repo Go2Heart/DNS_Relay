@@ -82,12 +82,7 @@ extern int parseResponse(char *response, DNS_HEADER *header, DNS_QUESTION *quest
 
 
 /** @brief DNS回复报文生成 */
-/**
- * @details 创建DNS报文HEADER
- * @param header
- * @return 是否创建成功
- */
-extern bool createHeader(DNS_HEADER *header);
+
 /**
  * @details 创建DNS报文QUESTION
  * @param question
@@ -107,7 +102,7 @@ extern int createAnswer(char *buf, DNS_RR *rr);
  * @param question
  * @return 报文的长度
  */
-extern int constructCacheAnswer(unsigned char *ip, DNS_RR **answer, DNS_HEADER *header);
+extern int constructCacheAnswer(Ip *ip, DNS_RR **answer, DNS_HEADER *header);
 /**
  * @details 创建DNS报文
  * @param buf
@@ -132,8 +127,6 @@ extern int encodeName(unsigned char *qname, char *buf);
  */
 int replyDnsQuery(int sockfd, DNS_QUERY *query, DNS_RR *answer);
 /** @brief DNS回复报文生成结束 */
-
-
 
 
 #endif //DNSRELAY_DNSRESOLVER_H

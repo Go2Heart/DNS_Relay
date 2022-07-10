@@ -4,8 +4,8 @@
 
 #include "dnsResolver.h"
 #include <errno.h>
-int clientFd;
 int serverFd;
+int clientFd;
 struct sockaddr_in clientAddr;
 struct sockaddr_in serverAddr;
 socklen_t addrlen = sizeof(struct sockaddr_in);
@@ -60,16 +60,6 @@ socklen_t addrlen = sizeof(struct sockaddr_in);
     rr->ttl = ntohl(rr->ttl);
     rr->rdlength = ntohs(rr->rdlength);
 }
- bool createHeader( DNS_HEADER *header) {
-    if (header == NULL) {
-        return false;
-    }
-    memset(header, 0, sizeof(DNS_HEADER));
-    header->id = htons(header->id);
-    header->flags = htons(0x0100);
-    header->qdcount = htons(1);
-    return true;
-}
 bool createQuestion(DNS_QUESTION *question, DNS_QUERY *query) {
     if(logLevel >= 3)printf("%s\n", query->question->qname);
     if (question == NULL) {
@@ -83,7 +73,6 @@ bool createQuestion(DNS_QUESTION *question, DNS_QUERY *query) {
     if(question->qname == NULL) {
         return false;
     }
-    printf("name: %s\n", query->question->qname);
     encodeName(question->qname, query->question->qname);
     if(logLevel >= 3)printf("%s\n", query->question->qname);
     question->qtype = htons(query->question->qtype);
@@ -297,119 +286,36 @@ int createAnswer(char *buf, DNS_RR *rr) {
     return len;
 }
 
-
-/*int isPtr(){}*/
-/*
-int dnsQuery(DNS_QUERY *query, Cache *cache, DNS_HEADER **ansHead, DNS_RR **ansRR) {
-    unsigned char ip[4] = {0};
-    char* name = query->question->qname;
-    if(queryCache(cache, name, ip)) {
-        //found in cache
-        printf("found in cache\n");
-        printf("ip: %d.%d.%d.%d\n", ip[0], ip[1], ip[2], ip[3]);
-        return 1;
-    } else {
-        //not found in cache
-        printf("not found in cache\n");
-        char buf[BUFSIZE] = {0};
-
-        DNS_HEADER header = {0};
-        createHeader(&header);
-        DNS_QUESTION question = {0};
-        printf("%d\n", strlen(name));
-        createQuestion(&question, query);
-        int reqLen = createRequest(buf, &header, &question);
-        if(reqLen < 0) {
-            return -1;
-        }
-        struct sigaction alarmact;
-
-        bzero(&alarmact,sizeof(alarmact));
-        alarmact.sa_handler = sig_alarm;
-        alarmact.sa_flags = SA_NODEFER;
-
-        sigaction(SIGALRM,&alarmact,NULL);
-        int nbytes = sendto(sockfd, buf, reqLen, 0, (struct sockaddr *)&server_addr, sizeof(server_addr));
-        if (nbytes < 0) {
-            perror("sendto");
-            return -1;
-        }
-
-        while(true) {
-            struct sockaddr addr;
-            memset(&addr, 0, sizeof(addr));
-            socklen_t addrlen = sizeof(addr);
-            char recvbuf[BUFSIZE] = {0};
-            alarm(2);
-            if (recvfrom(sockfd, recvbuf, sizeof(recvbuf), 0, &addr, &addrlen) < 0) {
-                //perror("recvfrom error");
-                if(errno == EINTR) {
-                    printf("Response longer than 2 seconds\n");
-                    close(sockfd);
-                    return -1;
-                } else {
-                    printf("recvfrom error\n");
-                    close(sockfd);
-                    return -1;
-                }
-            }
-            alarm(0);
-            DNS_HEADER *recvHeader = (DNS_HEADER *) malloc(sizeof(DNS_HEADER));
-            DNS_QUESTION *recvQuestion = (DNS_QUESTION *) malloc(sizeof(DNS_QUESTION));
-            DNS_RR *recvAnswer = (DNS_RR *) malloc(sizeof(DNS_RR)); /* RR linklist head
-            parseResponse(recvbuf, recvHeader, recvQuestion, recvAnswer);
-            //recvAnswer = (recvAnswer->next);
-            DNS_RR *linklist = recvAnswer->next;
-            while(linklist != NULL) {
-
-                if(linklist->type == 0x01 ) {
-                    //If the answer is an A record, we can get the IP address updated in cache
-                    printf("%d.%d.%d.%d\n", linklist->rdata[0], linklist->rdata[1], linklist->rdata[2], linklist->rdata[3]);
-                    //adding to cache
-                    struct dns_map *map = (struct dns_map *)malloc(sizeof(struct dns_map));
-                    map->name = (uint8_t *)malloc(strlen(name) + 1);
-                    memcpy(map->name, name, strlen(name) + 1);
-                    memcpy(map->ip, linklist->rdata, 4);
-                    insertCache(cache, map->name, map->ip);
-                    printCache(cache);
-                }
-                linklist = (linklist->next);
-                if(linklist != NULL) {
-
-                }
-            }
-            //ans = NULL;
-            *ansHead = malloc(sizeof(*recvHeader));
-            *ansRR = malloc(sizeof(*recvAnswer->next));
-            memcpy(*ansHead, recvHeader, sizeof(*recvHeader));
-            memcpy(*ansRR, recvAnswer->next, sizeof(*recvAnswer->next));
-            free(recvHeader);
-            free(recvQuestion);
-            //free(recvAnswer);
-            break;
-        }
-
+int constructCacheAnswer(Ip *ip, DNS_RR **answer, DNS_HEADER *header) {
+    int ipCount = 0;
+    Ip* ipHead = ip;
+    while(ipHead->next != NULL) {
+        ipCount++;
+        ipHead = ipHead->next;
     }
-    return 2; //not in cache, forwarding to client
-}*/
-
-int constructCacheAnswer(unsigned char *ip, DNS_RR **answer, DNS_HEADER *header) {
     header->flags = 0x8180;
-    header->ancount = 1;
+    header->ancount = ipCount;
     if((*answer = (DNS_RR*)malloc(sizeof(DNS_RR)))==NULL) {
         perror("malloc");
         return -1;
     }
-    (*answer)->name = (uint8_t *)malloc(2); //using pointer to point to the name
-    (*answer)->name[0] = 0xc0;
-    (*answer)->name[1] = 0x0c;
-    (*answer)->type = 1;
-    (*answer)->class = 1;
-    (*answer)->ttl = 120;
-    (*answer)->rdlength = 4;
-    (*answer)->rdata = (uint8_t *)malloc(4);
-    memcpy((*answer)->rdata, ip, 4);
-    (*answer)->next = NULL;
+    DNS_RR *ans = *answer;
+    for(int i = 0; i < ipCount; i++) {
+        (*answer)->name = (uint8_t *)malloc(2); //using pointer to point to the name
+        (*answer)->name[0] = 0xc0;
+        (*answer)->name[1] = 0x0c;
+        (*answer)->type = 1;
+        (*answer)->class = 1;
+        (*answer)->ttl = 120;
+        (*answer)->rdlength = 4;
+        (*answer)->rdata = (uint8_t *)malloc(4);
+        memcpy((*answer)->rdata, ip->next->ip, 4);
+        if(i < ipCount-1)(*answer)->next = (DNS_RR *)malloc(sizeof(DNS_RR));
+        else (*answer)->next = NULL;
+        (*answer) = (*answer)->next;
+        ip = ip->next;
+    }
+    *answer = ans;
     return 1;
 }
 
@@ -424,7 +330,6 @@ int encodeName(unsigned char *qname, char *name) {
         qname += len + 1;
         token = strtok(NULL, delim);
     }
-
     return 1;
 }
 

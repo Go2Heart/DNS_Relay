@@ -48,12 +48,12 @@ extern FILE* logFile;
 extern int logLevel;
 
 
-extern int serverFd;
 extern int clientFd;
+extern int serverFd;
 extern struct sockaddr_in clientAddr;
 extern struct sockaddr_in serverAddr;
 /**
- * @brief the structure of a dns packet header
+ * @brief dns packet header结构体
  */
 typedef struct dns_header {
     uint16_t id;
@@ -65,8 +65,7 @@ typedef struct dns_header {
 } DNS_HEADER;
 
 /**
- * @brief the structure of a dns question
- * 
+ * @brief dns question结构体
  */
 typedef struct dns_question {
     uint8_t* qname;
@@ -75,8 +74,7 @@ typedef struct dns_question {
 } DNS_QUESTION;
 
 /**
- * @brief the structure of a dns answer
- * 
+ * @brief dns answer结构体
  */
 typedef struct dns_rr {
     uint8_t* name; /* linked list of labels */
@@ -89,16 +87,7 @@ typedef struct dns_rr {
 } DNS_RR;
 
 /**
- * @brief the structure of a dns packet header
- *
- */
-typedef struct dns_map {
-    unsigned char *name;
-    unsigned char ip[4];
-} DNS_MAP;
-
-/**
- * @brief the structure of a dns query which includes a dns header and a dns question
+ * @brief dns query结构体，代表一条查询报文，包括一个header和question
  */
 typedef struct dns_query {
     DNS_HEADER* header;
